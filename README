@@ -1,0 +1,48 @@
+0.- Descargas necesarias
+# Verificar Docker
+docker --version
+docker-compose --version
+
+# Verificar Python
+python --version  # Debe ser 3.8+
+
+# Descarga de Apache pig
+cd ~/Downloads
+wget https://archive.apache.org/dist/pig/pig-0.17.0/pig-0.17.0.tar.gz
+
+
+
+1.- descargar datos csv o txt. Dejar estos en la carpeta "data" 
+renombrar archivos como llm_responses y yahoo_responses. El 
+archivo ya viene con dos archivos preparados para su uso de
+prueba y junto a ellas, el documento de stopwords_es.txt, el
+cual es vital para el funcionamiento de esta tarea.
+2.- Si los documentos son csv, debera usar los siguientes comandos.
+
+chmod +x scripts/clean_data.py
+./scripts/clean_data.py
+
+Esto limpiara los archivos de ser que las respuestas esten en un formato incompatible. Aviso, el script detecta si los documentos tienen como minimo 15 respuestas, por lo tanto, no aceptara archivos con menos respuestas.
+3.- Lo siguiente a realizar es la ejecucion del script start.sh
+
+run start.sh
+
+Este script verificara los datos para depues ejecutar el docker compose el cual inicia los servicios de hadoop.
+
+
+5.-Como indica el codigo anterior, lo siguiente arealizar es run_analysis
+
+chmod +x scripts/run_analysis.py
+./scripts/run_analysis.py
+
+6.- Lo siguiente seria revisar que los resultados del analisis fueron bien realizados, para comprobar esto, se usan los siguientes comandos.
+
+head -n 20 output/yahoo_results/yahoo_results.txt
+head -n 20 output/llm_results/llm_results.txt
+
+7.- Tras obtener los resultados, procedemos a comparar estos, asi que se crea un entorno virtual y siguiente se activa. Dentro se instalan las dependencias correspondientes antes de ejecutar el script visualize_results.py. Todo esto se puede realizar con los siguientes comandos en la terminal.
+
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python scripts/visualize_results.py

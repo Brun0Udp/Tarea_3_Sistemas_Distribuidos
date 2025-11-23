@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Script para limpiar y convertir archivos CSV al formato correcto para Hadoop/Pig
-Procesa exactamente 15 respuestas usando comillas como delimitadores
-"""
 
 import re
 import csv
@@ -33,7 +29,7 @@ def clean_text(text):
     
     return text if text else None
 
-def process_yahoo_file(input_file, output_file):
+def process_yahoo_file(input_file, output_file, max_responses=None):
     """Procesa archivo de Yahoo (una línea por respuesta)"""
     print(f"\nProcesando Yahoo: {input_file}")
     
@@ -46,32 +42,39 @@ def process_yahoo_file(input_file, output_file):
                 if cleaned and len(cleaned) > 5:  # Filtrar líneas muy cortas
                     responses.append(cleaned)
         
-        # Verificar que tengamos 15 respuestas
-        if len(responses) != 15:
-            print(f" Advertencia: Se esperaban 15 respuestas, se encontraron {len(responses)}")
+        # Limitar al máximo si se especifica
+        if max_responses and len(responses) > max_responses:
+            print(f"    Se encontraron {len(responses)} respuestas, limitando a {max_responses}")
+            responses = responses[:max_responses]
+        
+        # Verificar mínimo de 15 respuestas
+        if len(responses) < 15:
+            print(f"     ERROR: Se encontraron solo {len(responses)} respuestas")
+            print(f"     Se requieren al menos 15 respuestas válidas")
+            return None, len(responses)
         
         # Guardar archivo limpio
         with open(output_file, 'w', encoding='utf-8') as f:
             for response in responses:
                 f.write(response + '\n')
         
-        print(f"✓ Archivo Yahoo limpio guardado: {output_file}")
-        print(f"  Total de respuestas: {len(responses)}")
+        print(f"  ✓ Archivo Yahoo limpio guardado: {output_file}")
+        print(f"    Total de respuestas: {len(responses)}")
         
         # Mostrar muestra
         if responses:
-            print(f" Muestra (primeras 3 respuestas):")
+            print(f"    Muestra (primeras 3 respuestas):")
             for i, resp in enumerate(responses[:3], 1):
                 preview = resp[:80] + "..." if len(resp) > 80 else resp
-                print(f"    {i}. {preview}")
+                print(f"      {i}. {preview}")
         
-        return True
+        return True, len(responses)
     
     except Exception as e:
-        print(f"Error procesando {input_file}: {e}")
-        return False
+        print(f" Error procesando {input_file}: {e}")
+        return None, 0
 
-def process_llm_file(input_file, output_file):
+def process_llm_file(input_file, output_file, max_responses=None):
     """Procesa archivo LLM (respuestas delimitadas por comillas)"""
     print(f"\nProcesando LLM: {input_file}")
     
@@ -106,38 +109,39 @@ def process_llm_file(input_file, output_file):
                                 if cleaned and len(cleaned) > 5:
                                     responses.append(cleaned)
         
-        # Limitar a 15 respuestas (por si acaso encontramos más)
-        if len(responses) > 15:
-            print(f"Se encontraron {len(responses)} respuestas, tomando las primeras 15")
-            responses = responses[:15]
+        # Limitar al máximo si se especifica
+        if max_responses and len(responses) > max_responses:
+            print(f" Se encontraron {len(responses)} respuestas, limitando a {max_responses}")
+            responses = responses[:max_responses]
         
-        # Verificar que tengamos 15 respuestas
-        if len(responses) != 15:
-            print(f"Advertencia: Se esperaban 15 respuestas, se encontraron {len(responses)}")
-            print(f"Considera revisar el formato del archivo manualmente")
+        # Verificar mínimo de 15 respuestas
+        if len(responses) < 15:
+            print(f"    ERROR: Se encontraron solo {len(responses)} respuestas")
+            print(f"    Se requieren al menos 15 respuestas válidas")
+            return None, len(responses)
         
         # Guardar archivo limpio
         with open(output_file, 'w', encoding='utf-8') as f:
             for response in responses:
                 f.write(response + '\n')
         
-        print(f"Archivo LLM limpio guardado: {output_file}")
-        print(f" Total de respuestas: {len(responses)}")
+        print(f"  ✓ Archivo LLM limpio guardado: {output_file}")
+        print(f"    Total de respuestas: {len(responses)}")
         
         # Mostrar muestra
         if responses:
-            print(f"  Muestra (primeras 3 respuestas):")
+            print(f"    Muestra (primeras 3 respuestas):")
             for i, resp in enumerate(responses[:3], 1):
                 preview = resp[:100] + "..." if len(resp) > 100 else resp
-                print(f"    {i}. {preview}")
+                print(f"      {i}. {preview}")
         
-        return True
+        return True, len(responses)
     
     except Exception as e:
-        print(f"Error procesando {input_file}: {e}")
+        print(f" Error procesando {input_file}: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return None, 0
 
 def verify_output_files():
     """Verifica que los archivos de salida sean correctos"""
@@ -148,37 +152,42 @@ def verify_output_files():
     yahoo_file = Path('data/yahoo_responses.txt')
     llm_file = Path('data/llm_responses.txt')
     
+    yahoo_count = 0
+    llm_count = 0
+    
     if yahoo_file.exists():
         with open(yahoo_file, 'r', encoding='utf-8') as f:
-            yahoo_lines = f.readlines()
-        print(f"\n✓ Yahoo: {len(yahoo_lines)} respuestas")
-        if len(yahoo_lines) != 15:
-            print(f"Se esperaban 15, se encontraron {len(yahoo_lines)}")
+            yahoo_count = len(f.readlines())
+        print(f"\n✓ Yahoo: {yahoo_count} respuestas")
     else:
         print("\n No se encontró data/yahoo_responses.txt")
     
     if llm_file.exists():
         with open(llm_file, 'r', encoding='utf-8') as f:
-            llm_lines = f.readlines()
-        print(f"✓ LLM: {len(llm_lines)} respuestas")
-        if len(llm_lines) != 15:
-            print(f" Se esperaban 15, se encontraron {len(llm_lines)}")
+            llm_count = len(f.readlines())
+        print(f"✓ LLM: {llm_count} respuestas")
     else:
-        print("\n No se encontró data/llm_responses.txt")
+        print(" No se encontró data/llm_responses.txt")
     
     if yahoo_file.exists() and llm_file.exists():
-        if len(yahoo_lines) == 15 and len(llm_lines) == 15:
-            print("\n Ambos archivos tienen exactamente 15 respuestas")
+        if yahoo_count >= 15 and llm_count >= 15:
+            if yahoo_count == llm_count:
+                print(f"\n Ambos archivos tienen exactamente {yahoo_count} respuestas (BALANCEADO)")
+            else:
+                print(f"\n  Los archivos tienen diferente cantidad de respuestas:")
+                print(f"    Yahoo: {yahoo_count}, LLM: {llm_count}")
             return True
         else:
-            print("\n  Los archivos no tienen el número esperado de respuestas")
+            print(f"\n ERROR: Uno o ambos archivos tienen menos de 15 respuestas")
+            print(f"    Yahoo: {yahoo_count}, LLM: {llm_count}")
             return False
     
     return False
 
 def main():
     print("=" * 70)
-    print("LIMPIEZA DE DATOS PARA HADOOP/PIG (15 RESPUESTAS)")
+    print("LIMPIEZA DE DATOS PARA HADOOP/PIG")
+    print("Mínimo 15 respuestas por archivo, balanceado a la cantidad menor")
     print("=" * 70)
     
     # Crear directorios si no existen
@@ -229,38 +238,77 @@ def main():
         print("\n Coloca tus archivos CSV en la carpeta 'data/' con estos nombres")
         return
     
-    # Procesar archivos
-    success_count = 0
+    # FASE 1: Procesar archivos sin límite para contar respuestas
+    print("\n" + "=" * 70)
+    print("FASE 1: Contando respuestas disponibles")
+    print("=" * 70)
     
-    # Procesar Yahoo
-    if process_yahoo_file(yahoo_input, 'data/yahoo_responses.txt'):
-        success_count += 1
-        # Hacer backup del original
+    # Procesar Yahoo (sin límite)
+    yahoo_success, yahoo_count = process_yahoo_file(yahoo_input, 'data/yahoo_responses_temp.txt')
+    
+    # Procesar LLM (sin límite)
+    llm_success, llm_count = process_llm_file(llm_input, 'data/llm_responses_temp.txt')
+    
+    # Verificar que ambos tengan al menos 15
+    if yahoo_count < 15 or llm_count < 15:
+        print("\n" + "=" * 70)
+        print("ERROR: NO HAY SUFICIENTES RESPUESTAS")
+        print("=" * 70)
+        print(f"\nRespuestas encontradas:")
+        print(f"  Yahoo: {yahoo_count} (mínimo requerido: 15)")
+        print(f"  LLM: {llm_count} (mínimo requerido: 15)")
+        print("\n Agrega más respuestas a los archivos CSV y vuelve a ejecutar")
+        
+        # Limpiar archivos temporales
+        Path('data/yahoo_responses_temp.txt').unlink(missing_ok=True)
+        Path('data/llm_responses_temp.txt').unlink(missing_ok=True)
+        return
+    
+    # FASE 2: Balancear a la cantidad mínima
+    min_responses = min(yahoo_count, llm_count)
+    
+    print("\n" + "=" * 70)
+    print("FASE 2: Balanceando archivos")
+    print("=" * 70)
+    print(f"\nCantidad de respuestas:")
+    print(f"  Yahoo: {yahoo_count}")
+    print(f"  LLM: {llm_count}")
+    print(f"  Mínimo: {min_responses}")
+    print(f"\n✓ Ambos archivos se limitarán a {min_responses} respuestas")
+    
+    # Procesar nuevamente con límite
+    yahoo_success, _ = process_yahoo_file(yahoo_input, 'data/yahoo_responses.txt', max_responses=min_responses)
+    llm_success, _ = process_llm_file(llm_input, 'data/llm_responses.txt', max_responses=min_responses)
+    
+    # Limpiar archivos temporales
+    Path('data/yahoo_responses_temp.txt').unlink(missing_ok=True)
+    Path('data/llm_responses_temp.txt').unlink(missing_ok=True)
+    
+    # Hacer backup de archivos originales
+    if yahoo_success:
         try:
             backup = f"data/original/{Path(yahoo_input).name}.backup"
             Path(yahoo_input).rename(backup)
-            print(f"  Backup guardado: {backup}")
+            print(f"\n Backup Yahoo guardado: {backup}")
         except:
             pass
     
-    # Procesar LLM
-    if process_llm_file(llm_input, 'data/llm_responses.txt'):
-        success_count += 1
-        # Hacer backup del original
+    if llm_success:
         try:
             backup = f"data/original/{Path(llm_input).name}.backup"
             Path(llm_input).rename(backup)
-            print(f"  Backup guardado: {backup}")
+            print(f"Backup LLM guardado: {backup}")
         except:
             pass
     
     # Verificar resultados
-    if success_count == 2:
+    if yahoo_success and llm_success:
         if verify_output_files():
             print("\n" + "=" * 70)
-            print(" PROCESO COMPLETADO EXITOSAMENTE")
+            print("PROCESO COMPLETADO EXITOSAMENTE")
             print("=" * 70)
-            print("\n Siguiente paso:")
+            print(f"\nArchivos balanceados: {min_responses} respuestas cada uno")
+            print("\nSiguiente paso:")
             print("  1. Verifica los archivos:")
             print("     head -n 5 data/yahoo_responses.txt")
             print("     head -n 5 data/llm_responses.txt")
@@ -269,7 +317,7 @@ def main():
             print("     ./scripts/setup_hadoop.sh")
         else:
             print("\n" + "=" * 70)
-            print("  PROCESO COMPLETADO CON ADVERTENCIAS")
+            print(" PROCESO COMPLETADO CON ADVERTENCIAS")
             print("=" * 70)
             print("\n Revisa los archivos manualmente antes de continuar")
     else:
